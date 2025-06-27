@@ -1,351 +1,175 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MapPin, Clock, Star, Download, Calendar, Share2, 
-  Map, List, RefreshCw, MessageCircle, Navigation
-} from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
-
-interface Activity {
-  id: string;
-  name: string;
-  description: string;
-  duration: string;
-  rating: number;
-  price: string;
-  category: string;
-  coordinates: [number, number];
-}
-
-interface DayItinerary {
-  day: number;
-  title: string;
-  emoji: string;
-  activities: Activity[];
-}
+// src/components/ItineraryDisplay.tsx
+import { motion } from 'framer-motion';
+import { DayItinerary, Place, Hotel } from '../types';
 
 interface ItineraryDisplayProps {
   destination: string;
   days: DayItinerary[];
+  hotels: Hotel[];
   onRegenerate: () => void;
 }
 
-const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({ 
-  destination, 
-  days, 
-  onRegenerate 
-}) => {
-  const { isDark } = useTheme();
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-
-  const handleExportPDF = () => {
-    // Implement PDF export functionality
-    console.log('Exporting to PDF...');
-  };
-
-  const handleSyncCalendar = () => {
-    // Implement calendar sync functionality
-    console.log('Syncing to calendar...');
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `My ${destination} Trip`,
-          text: `Check out my amazing ${destination} itinerary!`,
-          url: window.location.href
-        });
-      } catch (error) {
-        console.log('Error sharing:', error);
-      }
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
-    }
-  };
-
+const ItineraryDisplay = ({ destination, days, hotels, onRegenerate }: ItineraryDisplayProps) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-    >
-      {/* Header */}
-      <div className={`text-center mb-8 p-6 rounded-2xl ${
-        isDark ? 'bg-slate-800/50' : 'bg-white/50'
-      } backdrop-blur-sm`}>
-        <motion.h2
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
-        >
-          Your {destination} Adventure
-        </motion.h2>
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
-        >
-          {days.length} days of unforgettable experiences
-        </motion.p>
-      </div>
-
-      {/* Action Bar */}
+    <section className="max-w-6xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className={`flex flex-wrap gap-4 justify-center mb-8 p-4 rounded-2xl ${
-          isDark ? 'bg-slate-800/50' : 'bg-white/50'
-        } backdrop-blur-sm`}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden"
       >
-        {/* View Toggle */}
-        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              viewMode === 'list'
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-600 dark:text-gray-300'
-            }`}
-          >
-            <List className="h-4 w-4 mr-2 inline" />
-            List View
-          </button>
-          <button
-            onClick={() => setViewMode('map')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              viewMode === 'map'
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-600 dark:text-gray-300'
-            }`}
-          >
-            <Map className="h-4 w-4 mr-2 inline" />
-            Map View
-          </button>
-        </div>
+        <div className="p-6 md:p-8">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                {destination} Itinerary
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
+                Your personalized travel plan
+              </p>
+            </div>
+            <button
+              onClick={onRegenerate}
+              className="px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+            >
+              Regenerate
+            </button>
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-2">
-          <motion.button
-            onClick={onRegenerate}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              isDark 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <RefreshCw className="h-4 w-4 mr-2 inline" />
-            Regenerate
-          </motion.button>
-
-          <motion.button
-            onClick={handleExportPDF}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              isDark 
-                ? 'bg-green-600 hover:bg-green-700 text-white' 
-                : 'bg-green-500 hover:bg-green-600 text-white'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Download className="h-4 w-4 mr-2 inline" />
-            Export PDF
-          </motion.button>
-
-          <motion.button
-            onClick={handleSyncCalendar}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              isDark 
-                ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                : 'bg-purple-500 hover:bg-purple-600 text-white'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Calendar className="h-4 w-4 mr-2 inline" />
-            Sync Calendar
-          </motion.button>
-
-          <motion.button
-            onClick={handleShare}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              isDark 
-                ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                : 'bg-orange-500 hover:bg-orange-600 text-white'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Share2 className="h-4 w-4 mr-2 inline" />
-            Share
-          </motion.button>
-        </div>
-      </motion.div>
-
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        {viewMode === 'list' ? (
-          <motion.div
-            key="list"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            className="space-y-6"
-          >
-            {days.map((day, index) => (
+          <div className="space-y-8">
+            {days.map((day: DayItinerary) => (
               <motion.div
                 key={day.day}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className={`rounded-2xl overflow-hidden ${
-                  isDark ? 'bg-slate-800/80' : 'bg-white/80'
-                } backdrop-blur-sm border ${
-                  isDark ? 'border-slate-600' : 'border-gray-200'
-                } shadow-lg`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 * day.day }}
+                className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
               >
-                <div className={`p-6 border-b ${
-                  isDark ? 'border-slate-600' : 'border-gray-200'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <h3 className={`text-2xl font-bold ${
-                      isDark ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      <span className="text-3xl mr-3">{day.emoji}</span>
-                      {day.title}
-                    </h3>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      isDark ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      Day {day.day}
-                    </span>
-                  </div>
+                <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4">
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                    Day {day.day}
+                  </h3>
                 </div>
-
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {day.activities.map((activity, activityIndex) => (
-                      <motion.div
-                        key={activity.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: (index * 0.1) + (activityIndex * 0.05) }}
-                        className={`p-4 rounded-xl border ${
-                          isDark 
-                            ? 'bg-slate-700/50 border-slate-600' 
-                            : 'bg-gray-50 border-gray-200'
-                        } hover:shadow-md transition-all duration-300`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className={`font-semibold ${
-                                isDark ? 'text-white' : 'text-gray-900'
-                              }`}>
-                                {activity.name}
-                              </h4>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                isDark ? 'bg-green-600 text-white' : 'bg-green-100 text-green-800'
-                              }`}>
-                                {activity.category}
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {day.places.map((place: Place, index: number) => (
+                    <div key={index} className="p-6">
+                      <div className="flex flex-col md:flex-row gap-6">
+                        <div className="md:w-1/3">
+                          {place.imageUrl && (
+                            <img
+                              src={place.imageUrl}
+                              alt={place.name}
+                              className="w-full h-48 object-cover rounded-lg"
+                              loading="lazy"
+                            />
+                          )}
+                        </div>
+                        <div className="md:w-2/3">
+                          <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                            {place.name}
+                          </h4>
+                          <p className="mt-2 text-gray-600 dark:text-gray-300">
+                            {place.description}
+                          </p>
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Best Time to Visit
                               </span>
+                              <p className="text-gray-900 dark:text-white">
+                                {place.bestTime || 'Anytime'}
+                              </p>
                             </div>
-                            <p className={`text-sm mb-2 ${
-                              isDark ? 'text-gray-300' : 'text-gray-600'
-                            }`}>
-                              {activity.description}
-                            </p>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                {activity.duration}
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Ticket Price
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Star className="h-4 w-4 text-yellow-400" />
-                                {activity.rating}
+                              <p className="text-gray-900 dark:text-white">
+                                {place.ticketPrice || 'Free'}
+                              </p>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Location
                               </span>
-                              <span className="flex items-center gap-1">
-                                <span className="text-green-500">$</span>
-                                {activity.price}
-                              </span>
+                              <p className="text-gray-900 dark:text-white">
+                                Lat: {place.coordinates.lat.toFixed(4)}, Lng: {place.coordinates.lng.toFixed(4)}
+                              </p>
                             </div>
                           </div>
-                          <motion.button
-                            className={`p-2 rounded-lg transition-colors ${
-                              isDark 
-                                ? 'bg-slate-600 hover:bg-slate-500 text-gray-300' 
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                            }`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <Navigation className="h-4 w-4" />
-                          </motion.button>
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="map"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            className={`h-96 rounded-2xl overflow-hidden ${
-              isDark ? 'bg-slate-800' : 'bg-gray-200'
-            } flex items-center justify-center`}
-          >
-            <div className="text-center">
-              <Map className={`h-16 w-16 mx-auto mb-4 ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`} />
-              <p className={`text-lg font-medium ${
-                isDark ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Interactive map coming soon!
-              </p>
-              <p className={`text-sm ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                View all your destinations and activities on an interactive map
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
 
-      {/* AI Chat Assistant */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.5 }}
-        className="fixed bottom-6 right-6 z-50"
-      >
-        <motion.button
-          className={`p-4 rounded-full shadow-lg ${
-            isDark 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
-          } transition-all duration-300`}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <MessageCircle className="h-6 w-6" />
-        </motion.button>
+          {hotels.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-12"
+            >
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                Recommended Hotels
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {hotels.map((hotel: Hotel, index: number) => (
+                  <div
+                    key={index}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    {hotel.imageUrl && (
+                      <img
+                        src={hotel.imageUrl}
+                        alt={hotel.name}
+                        className="w-full h-48 object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    <div className="p-4">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {hotel.name}
+                      </h4>
+                      <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm">
+                        {hotel.address}
+                      </p>
+                      <div className="mt-3 flex justify-between items-center">
+                        <span className="text-gray-900 dark:text-white font-medium">
+                          {hotel.price}
+                        </span>
+                        <span className="flex items-center text-yellow-500">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <svg
+                              key={i}
+                              className={`w-4 h-4 ${i < Math.floor(Number(hotel.rating)) ? 'fill-current' : 'fill-none stroke-current'}`}
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                              />
+                            </svg>
+                          ))}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Coordinates: {hotel.coordinates.lat.toFixed(4)}, {hotel.coordinates.lng.toFixed(4)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </div>
       </motion.div>
-    </motion.div>
+    </section>
   );
 };
 

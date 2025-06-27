@@ -1,30 +1,42 @@
-// File: src/types.ts
-
-export interface TravelFormData {
-  destination: string;
-  startDate: Date | null;
-  endDate: Date | null;
-  interests: string[];
-  budget: number;
-  groupType: string;
+// src/types.ts
+export interface Coordinates {
+  lat: number;
+  lng: number;
 }
 
-export interface Activity {
-  id: string;
+export interface Place {
   name: string;
   description: string;
-  duration: string;
-  rating: number;
+  coordinates: Coordinates;
+  ticketPrice?: string;
+  bestTime?: string;
+  imageUrl?: string;
+}
+
+export interface Hotel {
+  name: string;
+  address: string;
   price: string;
-  category: string;
-  coordinates: [number, number];
+  rating: string;
+  coordinates: Coordinates;
+  imageUrl?: string;
 }
 
 export interface DayItinerary {
   day: number;
-  title: string;
-  emoji: string;
-  activities: Activity[];
+  places: Place[];
 }
 
+// src/types.ts
+export interface TravelFormData {
+  destination: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  groupType: string;
+  budget: number; // Changed from string to number
+  interests: string[];
+}
 
+export interface Activity {
+  // Add your activity properties here if needed
+}

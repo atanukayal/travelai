@@ -11,85 +11,115 @@ import WeatherWidget from './components/WeatherWidget';
 import GroupPlanner from './components/GroupPlanner';
 import FeaturesSection from './components/FeaturesSection';
 import Footer from './components/Footer';
-import { TravelFormData, Activity, DayItinerary } from './types';
-
+import { TravelFormData, Activity, DayItinerary, Hotel } from './types';
 import { LoadScript } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import { getTravelPlan } from './api/gemini';
 
+interface ItineraryOption {
+  title: string;
+  description: string;
+  itinerary: DayItinerary[];
+  hotels: Hotel[];
+}
 
 function App() {
   const [currentStep, setCurrentStep] = useState<'form' | 'itinerary'>('form');
   const [travelData, setTravelData] = useState<TravelFormData | null>(null);
-  const [itinerary, setItinerary] = useState<DayItinerary[]>([]);
-  const libraries: ("places")[] = ["places"];
+  const [itineraryOptions, setItineraryOptions] = useState<ItineraryOption[]>([]);
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
+  const libraries: ('places')[] = ['places'];
+  
 
-  const generateItinerary = (formData: TravelFormData) => {
-    const mockActivities: Activity[] = [
-      {
-        id: '1',
-        name: 'Beach Walk & Sunrise',
-        description: 'Start your day with a peaceful walk along the pristine coastline',
-        duration: '2 hours',
-        rating: 4.8,
-        price: 'Free',
-        category: 'Nature',
-        coordinates: [15.2993, 74.1240]
-      },
-      {
-        id: '2',
-        name: 'Local Market Tour',
-        description: 'Explore vibrant local markets and taste authentic street food',
-        duration: '3 hours',
-        rating: 4.6,
-        price: '$25',
-        category: 'Culture',
-        coordinates: [15.2993, 74.1240]
-      },
-      {
-        id: '3',
-        name: 'Historical Fort Visit',
-        description: 'Discover the rich history and stunning architecture',
-        duration: '4 hours',
-        rating: 4.7,
-        price: '$15',
-        category: 'History',
-        coordinates: [15.2993, 74.1240]
-      },
-      {
-        id: '4',
-        name: 'Sunset Beach Dinner',
-        description: 'Enjoy fresh seafood while watching a beautiful sunset',
-        duration: '2 hours',
-        rating: 4.9,
-        price: '$45',
-        category: 'Dining',
-        coordinates: [15.2993, 74.1240]
+  const generatePrompt = (formData: TravelFormData) => {
+    return `
+Generate 3 distinct travel itinerary options in JSON format ONLY (without any Markdown formatting or additional text) with the following structure:
+
+{
+  "options": [
+    {
+      "title": "Option 1 - Cultural Exploration",
+      "description": "Focus on historical sites and cultural experiences",
+      "itinerary": [
+        {
+          "day": 1,
+          "places": [
+            {
+              "name": "Place Name",
+              "description": "Detailed description",
+              "coordinates": { "lat": 0.0, "lng": 0.0 },
+              "ticketPrice": "Price info",
+              "bestTime": "Best time to visit",
+              "imageUrl": "URL to image"
+            }
+          ]
+        }
+      ],
+      "hotels": [
+        {
+          "name": "Hotel Name",
+          "address": "Full address",
+          "price": "Price per night",
+          "rating": "Rating out of 5",
+          "coordinates": { "lat": 0.0, "lng": 0.0 },
+          "imageUrl": "URL to image"
+        }
+      ]
+    },
+    {
+      "title": "Option 2 - Adventure Focus",
+      "description": "Emphasize outdoor activities and adventures",
+      "itinerary": [
+        // Similar structure for option 2
+      ],
+      "hotels": [
+        // Hotels for option 2
+      ]
+    },
+    {
+      "title": "Option 3 - Relaxation Getaway",
+      "description": "Focus on leisure and relaxation spots",
+      "itinerary": [
+        // Similar structure for option 3
+      ],
+      "hotels": [
+        // Hotels for option 3
+      ]
+    }
+  ]
+}
+
+For the following trip details:
+- Destination: ${formData.destination}
+- Duration: ${formData.endDate && formData.startDate 
+      ? Math.ceil((+formData.endDate - +formData.startDate) / (1000 * 60 * 60 * 24)) + 1 
+      : 3} days
+- Group type: ${formData.groupType}
+- Budget: $${formData.budget}
+- Interests: ${formData.interests.join(', ')}
+`;
+  };
+
+  const generateItinerary = async (formData: TravelFormData) => {
+    try {
+      const prompt = generatePrompt(formData);
+      console.log('Prompt sent to Gemini:', prompt);
+
+      const aiResponse = await getTravelPlan(prompt);
+      console.log('Gemini API Response:', aiResponse);
+
+      if (!aiResponse?.options || !Array.isArray(aiResponse.options)) {
+        throw new Error('Invalid itinerary format received from API');
       }
-    ];
 
-    const mockItinerary: DayItinerary[] = [
-      {
-        day: 1,
-        title: 'Arrival & Beach Exploration',
-        emoji: '🏖️',
-        activities: [mockActivities[0], mockActivities[1]]
-      },
-      {
-        day: 2,
-        title: 'Cultural Discovery',
-        emoji: '🏛️',
-        activities: [mockActivities[2], mockActivities[3]]
-      },
-      {
-        day: 3,
-        title: 'Adventure & Relaxation',
-        emoji: '🌅',
-        activities: [mockActivities[0], mockActivities[3]]
-      }
-    ];
-
-    setTravelData(formData);
-    setItinerary(mockItinerary);
-    setCurrentStep('itinerary');
+      setTravelData(formData);
+      setItineraryOptions(aiResponse.options);
+      setSelectedOptionIndex(0);
+      setCurrentStep('itinerary');
+    } catch (error) {
+      console.error('Error generating itinerary:', error);
+      // Show error to user
+    }
   };
 
   const handleRegenerate = () => {
@@ -98,103 +128,127 @@ function App() {
     }
   };
 
+  const handleSelectOption = (index: number) => {
+    setSelectedOptionIndex(index);
+  };
+
   const backToForm = () => setCurrentStep('form');
 
   return (
     <LoadScript
       googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
-  // Replace with your actual key
-      libraries ={['places']}
+      libraries={libraries}
     >
-    <ThemeProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-        <Header />
+      <ThemeProvider>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+          <Header />
 
-        <Toaster position="top-right" toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'var(--toast-bg)',
-            color: 'var(--toast-color)',
-            border: '1px solid var(--toast-border)',
-            borderRadius: '12px',
-            padding: '16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#ffffff',
+          <Toaster position="top-right" toastOptions={{
+            duration: 4000,
+            style: {
+              background: 'var(--toast-bg)',
+              color: 'var(--toast-color)',
+              border: '1px solid var(--toast-border)',
+              borderRadius: '12px',
+              padding: '16px',
+              fontSize: '14px',
+              fontWeight: '500',
+              boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
             },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#ffffff',
+            success: {
+              iconTheme: {
+                primary: '#10B981',
+                secondary: '#ffffff',
+              },
             },
-          },
-        }} />
+            error: {
+              iconTheme: {
+                primary: '#EF4444',
+                secondary: '#ffffff',
+              },
+            },
+          }} />
 
-        {currentStep === 'form' ? (
-          <>
-            <HeroSection />
-            <section id="planner" className="py-20 px-4">
-              <TravelForm onGenerateItinerary={generateItinerary} />
-            </section>
-            <FeaturesSection />
-          </>
-        ) : (
-          <div className="pt-20 pb-16">
-            <div className="mb-8 px-4">
-              <motion.button
-                onClick={backToForm}
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                ← Back to Planning
-              </motion.button>
+          {currentStep === 'form' ? (
+            <>
+              <HeroSection />
+              <section id="planner" className="py-20 px-4">
+                <TravelForm onGenerateItinerary={generateItinerary} />
+              </section>
+              <FeaturesSection />
+            </>
+          ) : (
+            <div className="pt-20 pb-16">
+              <div className="mb-8 px-4">
+                <motion.button
+                  onClick={backToForm}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                >
+                  ← Back to Planning
+                </motion.button>
+              </div>
+              <div className="space-y-16 px-4">
+                {itineraryOptions.length > 0 && (
+                  <>
+                    <div className="flex gap-4 overflow-x-auto pb-4">
+                      {itineraryOptions.map((option, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleSelectOption(index)}
+                          className={`px-6 py-3 rounded-lg whitespace-nowrap ${
+                            selectedOptionIndex === index
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-200 dark:bg-gray-700'
+                          }`}
+                        >
+                          {option.title}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <ItineraryDisplay
+                      destination={travelData?.destination || 'Your Destination'}
+                      days={itineraryOptions[selectedOptionIndex].itinerary}
+                      hotels={itineraryOptions[selectedOptionIndex].hotels}
+                      onRegenerate={handleRegenerate}
+                    />
+                  </>
+                )}
+                
+                <WeatherWidget
+                  destination={travelData?.destination || ''}
+                  startDate={travelData?.startDate || null}
+                  endDate={travelData?.endDate || null}
+                />
+                <GroupPlanner
+                  tripId="sample-trip-123"
+                  destination={travelData?.destination || 'Your Destination'}
+                />
+              </div>
             </div>
-            <div className="space-y-16 px-4">
-              <ItineraryDisplay
-                destination={travelData?.destination || 'Your Destination'}
-                days={itinerary}
-                onRegenerate={handleRegenerate}
-              />
-              <WeatherWidget
-                destination={travelData?.destination || ''}
-                startDate={travelData?.startDate || null}
-                endDate={travelData?.endDate || null}
-              />
-              <GroupPlanner
-                tripId="sample-trip-123"
-                destination={travelData?.destination || 'Your Destination'}
-              />
-            </div>
-          </div>
-        )}
+          )}
 
-        <Footer />
+          <Footer />
 
-        <style>
-          {`
-            :root {
-              --toast-bg: #ffffff;
-              --toast-color: #374151;
-              --toast-border: #e5e7eb;
-            }
-            .dark {
-              --toast-bg: #374151;
-              --toast-color: #ffffff;
-              --toast-border: #4b5563;
-            }
-          `}
-        </style>
-      </div>
-    </ThemeProvider>
+          <style>
+            {`
+              :root {
+                --toast-bg: #ffffff;
+                --toast-color: #374151;
+                --toast-border: #e5e7eb;
+              }
+              .dark {
+                --toast-bg: #374151;
+                --toast-color: #ffffff;
+                --toast-border: #4b5563;
+              }
+            `}
+          </style>
+        </div>
+      </ThemeProvider>
     </LoadScript>
-    
   );
 }
 
