@@ -33,10 +33,32 @@ export interface TravelFormData {
   startDate: Date | null;
   endDate: Date | null;
   groupType: string;
-  budget: number; // Changed from string to number
+  budget: number; // Changed to string to match form input
   interests: string[];
 }
 
 export interface Activity {
-  // Add your activity properties here if needed
+  // Add activity properties if needed
+}
+
+export interface ItineraryOption {
+  title: string;
+  description: string;
+  itinerary: DayItinerary[];
+  hotels: Hotel[];
+}
+
+// Add this for TravelForm props
+export interface TravelFormProps {
+  onGenerateItinerary: (data: TravelFormData) => Promise<void>;
+  isLoading?: boolean;
+}
+
+export interface WeatherDay {
+  date: string;
+  condition: string;
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  icon: string;
 }

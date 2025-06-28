@@ -27,7 +27,8 @@ interface TravelFormData {
 }
 
 interface TravelFormProps {
-  onGenerateItinerary: (data: TravelFormData) => void;
+  onGenerateItinerary: (data: TravelFormData) => void | Promise<void>;
+
 }
 
 interface PlaceSuggestion {

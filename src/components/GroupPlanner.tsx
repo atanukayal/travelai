@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Users, Share2, QrCode, Copy, Check, 
-  UserPlus, Mail, MessageCircle 
+  Users, Share2, Copy, Check, 
+  UserPlus, MessageCircle 
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import QRCode from 'qrcode';

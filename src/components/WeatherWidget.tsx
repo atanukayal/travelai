@@ -1,281 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Cloud, Sun, CloudRain, CloudSnow, Wind, 
-  Thermometer, Droplets, Eye 
-} from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
-
-interface WeatherData {
-  temperature: number;
-  condition: string;
-  humidity: number;
-  windSpeed: number;
-  visibility: number;
-  forecast: {
-    day: string;
-    high: number;
-    low: number;
-    condition: string;
-    icon: string;
-  }[];
-}
+import { useEffect, useState } from 'react';
+import { WeatherDay } from '../types';
 
 interface WeatherWidgetProps {
   destination: string;
-  startDate: Date | null;
-  endDate: Date | null;
+  startDate: string | null;
+  endDate: string | null;
 }
 
-const WeatherWidget: React.FC<WeatherWidgetProps> = ({ 
-  destination, 
-  startDate, 
-  endDate 
-}) => {
-  const { isDark } = useTheme();
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+const weatherIcons: Record<string, string> = {
+  '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '⛅',
+  '03d': '☁️', '03n': '☁️', '04d': '☁️', '04n': '☁️',
+  '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
+  '11d': '⛈️', '11n': '⛈️', '13d': '❄️', '13n': '❄️',
+  '50d': '🌫️', '50n': '🌫️',
+};
+
+const MAX_FORECAST_DAYS = 5; // OpenWeatherMap free tier limit
+
+const WeatherWidget = ({ destination, startDate, endDate }: WeatherWidgetProps) => {
+  const [weatherData, setWeatherData] = useState<WeatherDay[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showLimitNotice, setShowLimitNotice] = useState(false);
 
-  // Mock weather data - in a real app, this would fetch from a weather API
   useEffect(() => {
-    if (destination && startDate) {
+    if (!destination || !startDate || !endDate) return;
+
+    const fetchWeatherData = async () => {
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setWeatherData({
-          temperature: 28,
-          condition: 'Sunny',
-          humidity: 65,
-          windSpeed: 12,
-          visibility: 10,
-          forecast: [
-            { day: 'Today', high: 30, low: 22, condition: 'Sunny', icon: '☀️' },
-            { day: 'Tomorrow', high: 28, low: 20, condition: 'Partly Cloudy', icon: '⛅' },
-            { day: 'Wed', high: 26, low: 18, condition: 'Rainy', icon: '🌧️' },
-            { day: 'Thu', high: 29, low: 21, condition: 'Sunny', icon: '☀️' },
-            { day: 'Fri', high: 31, low: 23, condition: 'Hot', icon: '🌞' },
-          ]
+      setError(null);
+      setShowLimitNotice(false);
+      
+      try {
+        // Geocode destination to get coordinates
+        const geoResponse = await fetch(
+          `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(destination)}&limit=1&appid=${import.meta.env.VITE_OPENWEATHER_API_KEY}`
+        );
+        
+        if (!geoResponse.ok) throw new Error('Failed to fetch location data');
+        
+        const geoData = await geoResponse.json();
+        if (!geoData?.length) throw new Error('Location not found');
+        
+        const { lat, lon } = geoData[0];
+        
+        // Calculate requested days
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const requestedDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        if (requestedDays > MAX_FORECAST_DAYS) {
+          setShowLimitNotice(true);
+        }
+
+        // Get weather forecast
+        const weatherResponse = await fetch(
+          `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=imperial&appid=${import.meta.env.VITE_OPENWEATHER_API_KEY}`
+        );
+        
+        if (!weatherResponse.ok) throw new Error('Failed to fetch weather data');
+        
+        const weatherData = await weatherResponse.json();
+        
+        // Process to get daily forecasts
+        const dailyForecasts: Record<string, WeatherDay> = {};
+        
+        weatherData.list.forEach((forecast: any) => {
+          const date = forecast.dt_txt.split(' ')[0];
+          if (!dailyForecasts[date]) {
+            dailyForecasts[date] = {
+              date,
+              condition: forecast.weather[0].main,
+              temperature: Math.round(forecast.main.temp),
+              humidity: forecast.main.humidity,
+              windSpeed: Math.round(forecast.wind.speed),
+              icon: forecast.weather[0].icon,
+            };
+          }
         });
+        
+        // Convert to array and limit to MAX_FORECAST_DAYS
+        const result = Object.values(dailyForecasts)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(0, MAX_FORECAST_DAYS);
+        
+        setWeatherData(result);
+      } catch (err) {
+        console.error('Error fetching weather data:', err);
+        setError('Failed to load weather data. Please try again later.');
+      } finally {
         setLoading(false);
-      }, 1000);
-    }
-  }, [destination, startDate]);
+      }
+    };
 
-  const getWeatherIcon = (condition: string) => {
-    switch (condition.toLowerCase()) {
-      case 'sunny':
-        return <Sun className="h-8 w-8 text-yellow-500" />;
-      case 'partly cloudy':
-        return <Cloud className="h-8 w-8 text-gray-500" />;
-      case 'rainy':
-        return <CloudRain className="h-8 w-8 text-blue-500" />;
-      case 'snowy':
-        return <CloudSnow className="h-8 w-8 text-blue-300" />;
-      default:
-        return <Sun className="h-8 w-8 text-yellow-500" />;
-    }
-  };
+    fetchWeatherData();
+  }, [destination, startDate, endDate]);
 
-  if (!destination || !startDate) {
-    return null;
-  }
+  if (!destination || !startDate || !endDate) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-      className={`max-w-4xl mx-auto p-6 rounded-2xl backdrop-blur-lg border ${
-        isDark 
-          ? 'bg-slate-800/80 border-slate-600' 
-          : 'bg-white/80 border-gray-200'
-      } shadow-lg`}
-    >
-      <div className="text-center mb-6">
-        <motion.h3
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
-        >
-          Weather in {destination}
-        </motion.h3>
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
-        >
-          {startDate && `${startDate.toLocaleDateString()} - ${endDate?.toLocaleDateString() || 'End date'}`}
-        </motion.p>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <motion.div
-            className={`w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full`}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          />
-        </div>
-      ) : weatherData ? (
-        <div className="space-y-6">
-          {/* Current Weather */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className={`text-center p-6 rounded-xl ${
-              isDark ? 'bg-slate-700/50' : 'bg-blue-50'
-            }`}
-          >
-            <div className="flex items-center justify-center mb-4">
-              {getWeatherIcon(weatherData.condition)}
-              <span className={`text-4xl font-bold ml-4 ${
-                isDark ? 'text-white' : 'text-gray-900'
-              }`}>
-                {weatherData.temperature}°C
-              </span>
-            </div>
-            <p className={`text-lg font-medium ${
-              isDark ? 'text-gray-300' : 'text-gray-700'
-            }`}>
-              {weatherData.condition}
-            </p>
-          </motion.div>
-
-          {/* Weather Details */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="grid grid-cols-3 gap-4"
-          >
-            <div className={`text-center p-4 rounded-xl ${
-              isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-            }`}>
-              <Droplets className={`h-6 w-6 mx-auto mb-2 ${
-                isDark ? 'text-blue-400' : 'text-blue-500'
-              }`} />
-              <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Humidity
-              </p>
-              <p className={`text-lg font-semibold ${
-                isDark ? 'text-white' : 'text-gray-900'
-              }`}>
-                {weatherData.humidity}%
-              </p>
-            </div>
-
-            <div className={`text-center p-4 rounded-xl ${
-              isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-            }`}>
-              <Wind className={`h-6 w-6 mx-auto mb-2 ${
-                isDark ? 'text-green-400' : 'text-green-500'
-              }`} />
-              <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Wind Speed
-              </p>
-              <p className={`text-lg font-semibold ${
-                isDark ? 'text-white' : 'text-gray-900'
-              }`}>
-                {weatherData.windSpeed} km/h
-              </p>
-            </div>
-
-            <div className={`text-center p-4 rounded-xl ${
-              isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-            }`}>
-              <Eye className={`h-6 w-6 mx-auto mb-2 ${
-                isDark ? 'text-purple-400' : 'text-purple-500'
-              }`} />
-              <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Visibility
-              </p>
-              <p className={`text-lg font-semibold ${
-                isDark ? 'text-white' : 'text-gray-900'
-              }`}>
-                {weatherData.visibility} km
-              </p>
-            </div>
-          </motion.div>
-
-          {/* 5-Day Forecast */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <h4 className={`text-lg font-semibold mb-4 ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
-              5-Day Forecast
-            </h4>
-            <div className="grid grid-cols-5 gap-2">
-              {weatherData.forecast.map((day, index) => (
-                <motion.div
-                  key={day.day}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 + (index * 0.1) }}
-                  className={`text-center p-3 rounded-xl ${
-                    isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-                  } hover:scale-105 transition-transform duration-200`}
-                >
-                  <p className={`text-sm font-medium mb-2 ${
-                    isDark ? 'text-gray-300' : 'text-gray-600'
-                  }`}>
-                    {day.day}
-                  </p>
-                  <div className="text-2xl mb-2">{day.icon}</div>
-                  <div className="space-y-1">
-                    <p className={`text-sm font-semibold ${
-                      isDark ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {day.high}°
-                    </p>
-                    <p className={`text-xs ${
-                      isDark ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      {day.low}°
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Weather Tips */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className={`p-4 rounded-xl ${
-              isDark ? 'bg-blue-900/30 border border-blue-700' : 'bg-blue-50 border border-blue-200'
-            }`}
-          >
-            <h4 className={`text-lg font-semibold mb-2 ${
-              isDark ? 'text-blue-300' : 'text-blue-800'
-            }`}>
-              💡 Travel Tips
-            </h4>
-            <ul className={`text-sm space-y-1 ${
-              isDark ? 'text-blue-200' : 'text-blue-700'
-            }`}>
-              <li>• Pack light, breathable clothing for warm weather</li>
-              <li>• Don't forget sunscreen and a hat for sunny days</li>
-              <li>• Bring a light rain jacket for potential showers</li>
-              <li>• Stay hydrated and seek shade during peak hours</li>
-            </ul>
-          </motion.div>
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-            Weather information will appear here once you select a destination and dates.
-          </p>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+      <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">
+        Weather Forecast for {destination}
+      </h2>
+      
+      {loading && <p className="text-gray-600 dark:text-gray-300">Loading weather data...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      
+      {showLimitNotice && (
+        <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-lg">
+          <p>Note: Free weather API provides forecasts for {MAX_FORECAST_DAYS} days only.</p>
         </div>
       )}
-    </motion.div>
+      
+      {weatherData.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {weatherData.map((day, index) => (
+              <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <p className="font-medium text-gray-800 dark:text-gray-200">
+                  {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+                <div className="flex justify-center mb-2">
+                  <div className="text-3xl">
+                    {weatherIcons[day.icon] || '☀️'}
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-800 dark:text-white">
+                  {day.temperature}°F
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                  {day.condition.toLowerCase()}
+                </p>
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                  <p>Humidity: {day.humidity}%</p>
+                  <p>Wind: {day.windSpeed} mph</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 };
 
