@@ -62,3 +62,17 @@ export interface WeatherDay {
   windSpeed: number;
   icon: string;
 }
+
+export interface PgAccommodation {
+  name: string;
+  address: string;
+  price: string;
+  rating: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  imageUrl?: string;
+  amenities?: string[];
+  placeId?: string;
+}

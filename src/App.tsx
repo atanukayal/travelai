@@ -78,14 +78,25 @@ Generate 3 distinct travel itinerary options in JSON format ONLY (without any Ma
         {
           "name": "Hotel Name",
           "address": "Full address",
-          "price": "Price per night",
+          "price": "Price per night in currency of that country",
           "rating": "Rating out of 5",
           "coordinates": { "lat": 0.0, "lng": 0.0 },
           "imageUrl": "Valid HTTPS image URL"
         }
       ]
-    }
-  ]
+        "Paying guest accommodation": [
+          {
+            "name": "Paying Guest Name",
+            "address": "Full address",
+            "price": "Price per night in currency of that country",
+            "rating": "Rating out of 5",
+            "coordinates": { "lat": 0.0, "lng": 0.0 },
+            "imageUrl": "Valid HTTPS image URL"
+          }
+        ]
+          
+      }
+    ]
 }
 
 Trip Details:

@@ -26,9 +26,9 @@ interface TravelFormData {
   groupType: string;
 }
 
-interface TravelFormProps {
+export interface TravelFormProps {
   onGenerateItinerary: (data: TravelFormData) => void | Promise<void>;
-
+  isLoading: boolean;
 }
 
 interface PlaceSuggestion {
